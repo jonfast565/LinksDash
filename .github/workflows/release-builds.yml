@@ -1,0 +1,96 @@
+name: release-builds
+
+on:
+  push:
+    tags:
+      - "v*"
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v3
+        with:
+          version: "6.5.3"
+          modules: "qtwidgets qtsql"
+
+      - name: Linux deps
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libgl1-mesa-dev libxkbcommon-x11-0 libfuse2 librsvg2-bin
+
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --config Release
+
+      - name: Package (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Copy-Item build/Release/LinksDash.exe dist/
+          $qtBin = Join-Path $env:Qt6_DIR "..\\..\\bin"
+          & (Join-Path $qtBin "windeployqt.exe") dist/LinksDash.exe
+          Compress-Archive -Path dist/* -DestinationPath LinksDash-windows.zip
+
+      - name: Package (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          mkdir -p dist
+          cp -R build/LinksDash.app dist/
+          qt_bin="$(dirname "$Qt6_DIR")/../bin"
+          "$qt_bin/macdeployqt" "dist/LinksDash.app"
+          ditto -c -k --sequesterRsrc --keepParent dist/LinksDash.app LinksDash-macos.zip
+
+      - name: Package (Linux AppImage)
+        if: runner.os == 'Linux'
+        run: |
+          mkdir -p dist AppDir/usr/bin AppDir/usr/share/icons/hicolor/256x256/apps
+          cp build/LinksDash AppDir/usr/bin/LinksDash
+          rsvg-convert -w 256 -h 256 assets/linksdash_icon.svg -o AppDir/LinksDash.png
+          cp AppDir/LinksDash.png AppDir/usr/share/icons/hicolor/256x256/apps/LinksDash.png
+          cat > AppDir/LinksDash.desktop <<'EOF'
+          [Desktop Entry]
+          Type=Application
+          Name=LinksDash
+          Exec=LinksDash
+          Icon=LinksDash
+          Categories=Utility;
+          EOF
+
+          curl -L -o linuxdeploy-x86_64.AppImage https://github.com/linuxdeploy/linuxdeploy/releases/latest/download/linuxdeploy-x86_64.AppImage
+          curl -L -o linuxdeploy-plugin-qt-x86_64.AppImage https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/latest/download/linuxdeploy-plugin-qt-x86_64.AppImage
+          chmod +x linuxdeploy-x86_64.AppImage linuxdeploy-plugin-qt-x86_64.AppImage
+
+          ./linuxdeploy-x86_64.AppImage --appdir AppDir -e AppDir/usr/bin/LinksDash -d AppDir/LinksDash.desktop -i AppDir/LinksDash.png --plugin qt --output appimage
+          mv LinksDash-*.AppImage LinksDash-linux.AppImage
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: LinksDash-${{ runner.os }}
+          path: |
+            LinksDash-windows.zip
+            LinksDash-macos.zip
+            LinksDash-linux.AppImage
+          if-no-files-found: ignore
+
+      - name: Upload release assets
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            LinksDash-windows.zip
+            LinksDash-macos.zip
+            LinksDash-linux.AppImage
