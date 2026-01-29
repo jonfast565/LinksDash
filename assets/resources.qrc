@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/icons">
+        <file alias="linksdash_icon.svg">linksdash_icon.svg</file>
+    </qresource>
+</RCC>
