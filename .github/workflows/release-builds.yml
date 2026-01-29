@@ -1,5 +1,8 @@
 name: release-builds
 
+permissions:
+  contents: write
+
 on:
   push:
     tags:
@@ -85,11 +88,18 @@ jobs:
             LinksDash-linux.AppImage
           if-no-files-found: ignore
 
+  release:
+    if: github.event_name == 'release'
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: LinksDash-*
+          merge-multiple: true
       - name: Upload release assets
-        if: github.event_name == 'release'
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            LinksDash-windows.zip
-            LinksDash-macos.zip
-            LinksDash-linux.AppImage
+            **/*.zip
+            **/*.AppImage
