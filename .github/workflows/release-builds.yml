@@ -22,7 +22,6 @@ jobs:
         uses: jurplel/install-qt-action@v3
         with:
           version: "6.5.3"
-          modules: "qtwidgets qtsql"
 
       - name: Linux deps
         if: runner.os == 'Linux'
