@@ -39,7 +39,7 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path dist | Out-Null
           Copy-Item build/Release/LinksDash.exe dist/
-          $qtBin = Join-Path $env:Qt6_DIR "..\\..\\bin"
+          $qtBin = Join-Path $env:Qt6_DIR "bin"
           & (Join-Path $qtBin "windeployqt.exe") dist/LinksDash.exe
           Compress-Archive -Path dist/* -DestinationPath LinksDash-windows.zip
 
