@@ -29,6 +29,9 @@ set(PROJECT_SOURCES
         window/main_window.ui
 )
 
+set(APP_ICON_MACOS "${CMAKE_CURRENT_SOURCE_DIR}/assets/icons/macos/LinksDash.icns")
+set(APP_ICON_WIN_RC "${CMAKE_CURRENT_SOURCE_DIR}/assets/icons/windows/LinksDash.rc")
+
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
     qt_add_executable(LinksDash
         MANUAL_FINALIZATION
@@ -53,6 +56,20 @@ else()
 endif()
 
 target_link_libraries(LinksDash PRIVATE Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Sql)
+
+if(APPLE)
+    set_source_files_properties(${APP_ICON_MACOS} PROPERTIES
+        MACOSX_PACKAGE_LOCATION "Resources"
+    )
+    target_sources(LinksDash PRIVATE ${APP_ICON_MACOS})
+    set_target_properties(LinksDash PROPERTIES
+        MACOSX_BUNDLE_ICON_FILE LinksDash.icns
+    )
+endif()
+
+if(WIN32)
+    target_sources(LinksDash PRIVATE ${APP_ICON_WIN_RC})
+endif()
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
 # If you are developing for iOS or macOS you should consider setting an
